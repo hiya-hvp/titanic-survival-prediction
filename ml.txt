@@ -1,0 +1,910 @@
+Dataset: JFK Flight TakeOff Dataset
+The data set says it was meant to be used to predict TAXI OUT but tbf ill check out both delay and taxi time
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from ydata_profiling import ProfileReport     # updated import
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+df = pd.read_csv("data.csv")
+print(df.head())
+
+MONTH  DAY_OF_MONTH  DAY_OF_WEEK OP_UNIQUE_CARRIER TAIL_NUM DEST  \
+0     11             1            5                B6   N828JB  CHS   
+1     11             1            5                B6   N992JB  LAX   
+2     11             1            5                B6   N959JB  FLL   
+3     11             1            5                B6   N999JQ  MCO   
+4     11             1            5                DL   N880DN  ATL   
+
+   DEP_DELAY  CRS_ELAPSED_TIME  DISTANCE  CRS_DEP_M  DEP_TIME_M  CRS_ARR_M  \
+0         -1               124       636        324         323        448   
+1         -7               371      2475        340         333        531   
+2         40               181      1069        301         341        482   
+3         -2               168       944        345         343        513   
+4         -4               139       760        360         356        499   
+
+   Temperature Dew Point  Humidity Wind  Wind Speed  Wind Gust  Pressure  \
+0           48        34        58    W          25         38     29.86   
+1           48        34        58    W          25         38     29.86   
+2           48        34        58    W          25         38     29.86   
+3           48        34        58    W          25         38     29.86   
+4           46        32        58    W          24         35     29.91   
+
+      Condition  sch_dep  sch_arr  TAXI_OUT  
+0  Fair / Windy        9       17        14  
+1  Fair / Windy        9       17        15  
+2  Fair / Windy        9       17        22  
+3  Fair / Windy        9       17        12  
+4  Fair / Windy        9       17        13  
+
+# Clean 'Dew Point' column by removing non-breaking spaces and casting to float
+df['Dew Point'] = df['Dew Point'].astype(str).str.replace(r'\xa0', '', regex=True).astype(float)
+df['Dew Point'].describe()
+
+count    28820.000000
+mean        30.420819
+std         12.314083
+min         -3.000000
+25%         23.000000
+50%         31.000000
+75%         39.000000
+max         67.000000
+Name: Dew Point, dtype: float64
+
+Basic EDA
+df.shape
+
+(28820, 23)
+df.dtypes
+
+MONTH                  int64
+DAY_OF_MONTH           int64
+DAY_OF_WEEK            int64
+OP_UNIQUE_CARRIER     object
+TAIL_NUM              object
+DEST                  object
+DEP_DELAY              int64
+CRS_ELAPSED_TIME       int64
+DISTANCE               int64
+CRS_DEP_M              int64
+DEP_TIME_M             int64
+CRS_ARR_M              int64
+Temperature            int64
+Dew Point            float64
+Humidity               int64
+Wind                  object
+Wind Speed             int64
+Wind Gust              int64
+Pressure             float64
+Condition             object
+sch_dep                int64
+sch_arr                int64
+TAXI_OUT               int64
+dtype: object
+
+df.sample(5)
+
+MONTH	DAY_OF_MONTH	DAY_OF_WEEK	OP_UNIQUE_CARRIER	TAIL_NUM	DEST	DEP_DELAY	CRS_ELAPSED_TIME	DISTANCE	CRS_DEP_M	DEP_TIME_M	CRS_ARR_M	Temperature	Dew Point	Humidity	Wind	Wind Speed	Wind Gust	Pressure	Condition	sch_dep	sch_arr	TAXI_OUT
+21215	1	8	3	DL	N775DE	SJC	-2	427	2569	510	508	757	35	30.0	82	W	14	0	29.92	Mostly Cloudy	48	18	34
+26866	1	26	7	AA	N105NN	LAX	-5	399	2475	540	535	759	41	36.0	82	WSW	15	0	29.82	Mostly Cloudy	47	17	11
+23001	1	13	1	DL	N341NB	MSP	85	196	1029	1000	1085	1136	45	45.0	10	N	6	0	30.36	Cloudy	38	38	20
+23993	1	16	4	AA	N831NN	MIA	10	202	1089	1110	1120	1312	39	22.0	50	NW	23	35	30.08	Partly Cloudy / Windy	39	36	40
+6426	11	20	3	DL	N897DN	DEN	-5	275	1626	845	840	1000	
+
+count = 0
+for col in df.columns:
+    print(col)
+
+MONTH
+DAY_OF_MONTH
+DAY_OF_WEEK
+OP_UNIQUE_CARRIER
+TAIL_NUM
+DEST
+DEP_DELAY
+CRS_ELAPSED_TIME
+DISTANCE
+CRS_DEP_M
+DEP_TIME_M
+CRS_ARR_M
+Temperature
+Dew Point
+Humidity
+Wind
+Wind Speed
+Wind Gust
+Pressure
+Condition
+sch_dep
+sch_arr
+TAXI_OUT
+
+df.isnull().sum()
+
+MONTH                0
+DAY_OF_MONTH         0
+DAY_OF_WEEK          0
+OP_UNIQUE_CARRIER    0
+TAIL_NUM             0
+DEST                 0
+DEP_DELAY            0
+CRS_ELAPSED_TIME     0
+DISTANCE             0
+CRS_DEP_M            0
+DEP_TIME_M           0
+CRS_ARR_M            0
+Temperature          0
+Dew Point            0
+Humidity             0
+Wind                 2
+Wind Speed           0
+Wind Gust            0
+Pressure             0
+Condition            0
+sch_dep              0
+sch_arr              0
+TAXI_OUT             0
+dtype: int64
+
+df.describe()
+
+MONTH	DAY_OF_MONTH	DAY_OF_WEEK	DEP_DELAY	CRS_ELAPSED_TIME	DISTANCE	CRS_DEP_M	DEP_TIME_M	CRS_ARR_M	Temperature	Dew Point	Humidity	Wind Speed	Wind Gust	Pressure	sch_dep	sch_arr	TAXI_OUT
+count	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000	28820.000000
+mean	7.894240	16.021096	4.008952	6.374983	225.288203	1267.746079	831.003851	828.934698	910.874289	41.489833	30.420819	57.732616	12.367627	5.535323	30.092433	31.091256	28.432130	20.858570
+std	4.991723	8.750179	1.985230	38.735144	119.482417	889.343246	299.398525	305.864103	345.411743	8.043533	12.314083	23.468676	6.259298	11.886457	0.296160	9.510359	8.263043	6.851915
+min	1.000000	1.000000	1.000000	-22.000000	57.000000	94.000000	301.000000	1.000000	1.000000	17.000000	-3.000000	0.000000	0.000000	0.000000	29.200000	0.000000	0.000000	5.000000
+25%	1.000000	8.000000	2.000000	-6.000000	124.000000	483.000000	545.000000	542.000000	667.000000	36.000000	23.000000	46.000000	8.000000	0.000000	29.880000	26.000000	21.000000	16.000000
+50%	11.000000	16.000000	4.000000	-3.000000	188.000000	1029.000000	856.000000	854.000000	918.000000	42.000000	31.000000	59.000000	12.000000	0.000000	30.110000	30.000000	30.000000	19.000000
+75%	12.000000	24.000000	6.000000	2.000000	365.000000	2248.000000	1095.000000	1097.000000	1193.000000	47.000000	39.000000	74.000000	16.000000	0.000000	30.320000	37.000000	35.000000	25.000000
+max	12.000000	31.000000	7.000000	1276.000000	697.000000	4983.000000	1439.000000	1440.000000	1439.000000	68.000000	67.000000	97.000000	36.000000	49.000000	30.750000	55.000000	46.000000	41.000000
+
+
+df.duplicated().sum()
+np.int64(0)
+
+sns.countplot(x='Condition', data=df)
+plt.show()
+
+counts = df['Condition'].value_counts()
+threshold = 700
+
+rare_brands = counts[counts <= threshold].index
+df['Condition'] = df['Condition'].replace(rare_brands, 'Severe')
+
+pd.get_dummies(df['Condition']).sample(5)
+df["Condition"].unique()
+#ONE HOT ENCODING
+condition_dummies = pd.get_dummies(df['Condition'], prefix='Condition')
+df = pd.concat([df, condition_dummies], axis=1)
+df.drop('Condition', axis=1, inplace=True)
+#drop one col to prevent multicollinearity
+df.drop('Condition_Fair', axis=1, inplace=True)
+
+print(df.head())
+
+ MONTH  DAY_OF_MONTH  DAY_OF_WEEK OP_UNIQUE_CARRIER TAIL_NUM DEST  \
+0     11             1            5                B6   N828JB  CHS   
+1     11             1            5                B6   N992JB  LAX   
+2     11             1            5                B6   N959JB  FLL   
+3     11             1            5                B6   N999JQ  MCO   
+4     11             1            5                DL   N880DN  ATL   
+
+   DEP_DELAY  CRS_ELAPSED_TIME  DISTANCE  CRS_DEP_M  DEP_TIME_M  CRS_ARR_M  \
+0         -1               124       636        324         323        448   
+1         -7               371      2475        340         333        531   
+2         40               181      1069        301         341        482   
+3         -2               168       944        345         343        513   
+4         -4               139       760        360         356        499   
+
+   Temperature  Dew Point  Humidity Wind  Wind Speed  Wind Gust  Pressure  \
+0           48       34.0        58    W          25         38     29.86   
+1           48       34.0        58    W          25         38     29.86   
+2           48       34.0        58    W          25         38     29.86   
+3           48       34.0        58    W          25         38     29.86   
+4           46       32.0        58    W          24         35     29.91   
+
+   sch_dep  sch_arr  TAXI_OUT  Condition_Cloudy  Condition_Fair / Windy  \
+0        9       17        14             False                    True   
+1        9       17        15             False                    True   
+2        9       17        22             False                    True   
+3        9       17        12             False                    True   
+4        9       17        13             False                    True   
+
+   Condition_Light Rain  Condition_Mostly Cloudy  \
+0                 False                    False   
+1                 False                    False   
+2                 False                    False   
+3                 False                    False   
+4                 False                    False   
+
+   Condition_Mostly Cloudy / Windy  Condition_Partly Cloudy  Condition_Severe  
+0                            False                    False             False  
+1                            False                    False             False  
+2                            False                    False             False  
+3                            False                    False             False  
+4                            False                    False             False  
+
+drop useless shit
+df.drop(['TAIL_NUM', "sch_arr", "DEST", "Wind"], axis=1, inplace=True)
+
+Correlation:
+fig, ax = plt.subplots(figsize=(14, 8))
+sns.heatmap(df.corr(numeric_only=True), annot=True, ax=ax, annot_kws={'size': 8}, cmap='coolwarm')
+plt.show()
+
+df.corr(numeric_only=True)['DEP_DELAY'].abs().sort_values(ascending=False)
+
+DEP_DELAY                          1.000000
+CRS_DEP_M                          0.102384
+DEP_TIME_M                         0.072340
+Wind Speed                         0.067718
+sch_dep                            0.065452
+Pressure                           0.064939
+Condition_Severe                   0.054908
+MONTH                              0.046455
+Wind Gust                          0.044340
+CRS_ARR_M                          0.043691
+DAY_OF_MONTH                       0.036618
+TAXI_OUT                           0.034881
+Temperature                        0.032261
+DISTANCE                           0.031507
+CRS_ELAPSED_TIME                   0.030871
+Condition_Mostly Cloudy            0.027309
+Condition_Light Rain               0.021871
+Condition_Fair / Windy             0.016491
+Condition_Cloudy                   0.012512
+Humidity                           0.011776
+Condition_Partly Cloudy            0.010489
+DAY_OF_WEEK                        0.006203
+Condition_Mostly Cloudy / Windy    0.003076
+Dew Point                          0.000013
+Name: DEP_DELAY, dtype: float64
+
+
+df = pd.get_dummies(df, columns=["OP_UNIQUE_CARRIER"], drop_first=True)
+
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 28820 entries, 0 to 28819
+Data columns (total 32 columns):
+ #   Column                           Non-Null Count  Dtype  
+---  ------                           --------------  -----  
+ 0   MONTH                            28820 non-null  int64  
+ 1   DAY_OF_MONTH                     28820 non-null  int64  
+ 2   DAY_OF_WEEK                      28820 non-null  int64  
+ 3   DEP_DELAY                        28820 non-null  int64  
+ 4   CRS_ELAPSED_TIME                 28820 non-null  int64  
+ 5   DISTANCE                         28820 non-null  int64  
+ 6   CRS_DEP_M                        28820 non-null  int64  
+ 7   DEP_TIME_M                       28820 non-null  int64  
+ 8   CRS_ARR_M                        28820 non-null  int64  
+ 9   Temperature                      28820 non-null  int64  
+ 10  Dew Point                        28820 non-null  float64
+ 11  Humidity                         28820 non-null  int64  
+ 12  Wind Speed                       28820 non-null  int64  
+ 13  Wind Gust                        28820 non-null  int64  
+ 14  Pressure                         28820 non-null  float64
+ 15  sch_dep                          28820 non-null  int64  
+ 16  TAXI_OUT                         28820 non-null  int64  
+ 17  Condition_Cloudy                 28820 non-null  bool   
+ 18  Condition_Fair / Windy           28820 non-null  bool   
+ 19  Condition_Light Rain             28820 non-null  bool   
+ 20  Condition_Mostly Cloudy          28820 non-null  bool   
+ 21  Condition_Mostly Cloudy / Windy  28820 non-null  bool   
+ 22  Condition_Partly Cloudy          28820 non-null  bool   
+ 23  Condition_Severe                 28820 non-null  bool   
+ 24  OP_UNIQUE_CARRIER_AA             28820 non-null  bool   
+ 25  OP_UNIQUE_CARRIER_AS             28820 non-null  bool   
+ 26  OP_UNIQUE_CARRIER_B6             28820 non-null  bool   
+ 27  OP_UNIQUE_CARRIER_DL             28820 non-null  bool   
+ 28  OP_UNIQUE_CARRIER_HA             28820 non-null  bool   
+ 29  OP_UNIQUE_CARRIER_MQ             28820 non-null  bool   
+ 30  OP_UNIQUE_CARRIER_OO             28820 non-null  bool   
+ 31  OP_UNIQUE_CARRIER_YX             28820 non-null  bool   
+dtypes: bool(15), float64(2), int64(15)
+memory usage: 4.2 MB
+
+Uni-Variate
+sns.histplot(df['TAXI_OUT'], kde=True)
+plt.show()
+sns.histplot(df['DEP_DELAY'], kde=True)
+plt.show()
+
+almost all flights are not delayed more then 200 mins standard deviation is 1 hr or smth tho
+
+sns.boxplot(x=df['TAXI_OUT'])
+plt.show()
+sns.boxplot(x=df['DEP_DELAY'])
+plt.show()
+
+BUNCH of outliers for delay, but taxi_out seems ok
+sns.histplot(df['sch_dep'], kde=True)
+plt.show()
+
+## Multivariate Analysis
+sns.scatterplot(x=df['sch_dep'], y=df['TAXI_OUT'], hue=df["DEP_DELAY"])
+plt.show()
+sns.scatterplot(x=df['sch_dep'], y=df['DEP_DELAY'], hue=df["TAXI_OUT"])
+plt.show()
+
+what the fuck does this mean
+
+
+Pairplot
+#sns.pairplot(df, hue='DEP_DELAY')
+#plt.show()
+
+Ydata report
+#prof = ProfileReport(df)
+#prof.to_file(output_file='output.html')
+
+
+summary
+ok so
+
+shit data:
+
+dew point is not a numeric col somehow?? it has invisiblem unicode chars which pandas cant parse.
+if we're doing to predict dep_delay, then we need to drop texi_out technically taxi out is data from the future (when the plane gets atc taxi clearance i presume) which we dont have when the plane is on the gate.
+
+categorical data encoding issues:
+
+Condition has a LOT of unqiue vals with very low frequencies, i grouped these under a column called severe but idk mane we need to fix this somehow. also if you really think about it, we need the weather data that i grouped under severe because that is exactly when flights get delayed. maybe we can group a range of these, we'll have to see
+
+TAIL_NUM just has to go, its useless
+
+outliers and skewness:
+
+the target val (dep_delay) is skewed to the right HEAVILY, we need a function or power transform.
+
+
+final data:
+df.shape
+(28820, 32)
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 28820 entries, 0 to 28819
+Data columns (total 32 columns):
+ #   Column                           Non-Null Count  Dtype  
+---  ------                           --------------  -----  
+ 0   MONTH                            28820 non-null  int64  
+ 1   DAY_OF_MONTH                     28820 non-null  int64  
+ 2   DAY_OF_WEEK                      28820 non-null  int64  
+ 3   DEP_DELAY                        28820 non-null  int64  
+ 4   CRS_ELAPSED_TIME                 28820 non-null  int64  
+ 5   DISTANCE                         28820 non-null  int64  
+ 6   CRS_DEP_M                        28820 non-null  int64  
+ 7   DEP_TIME_M                       28820 non-null  int64  
+ 8   CRS_ARR_M                        28820 non-null  int64  
+ 9   Temperature                      28820 non-null  int64  
+ 10  Dew Point                        28820 non-null  float64
+ 11  Humidity                         28820 non-null  int64  
+ 12  Wind Speed                       28820 non-null  int64  
+ 13  Wind Gust                        28820 non-null  int64  
+ 14  Pressure                         28820 non-null  float64
+ 15  sch_dep                          28820 non-null  int64  
+ 16  TAXI_OUT                         28820 non-null  int64  
+ 17  Condition_Cloudy                 28820 non-null  bool   
+ 18  Condition_Fair / Windy           28820 non-null  bool   
+ 19  Condition_Light Rain             28820 non-null  bool   
+ 20  Condition_Mostly Cloudy          28820 non-null  bool   
+ 21  Condition_Mostly Cloudy / Windy  28820 non-null  bool   
+ 22  Condition_Partly Cloudy          28820 non-null  bool   
+ 23  Condition_Severe                 28820 non-null  bool   
+ 24  OP_UNIQUE_CARRIER_AA             28820 non-null  bool   
+ 25  OP_UNIQUE_CARRIER_AS             28820 non-null  bool   
+ 26  OP_UNIQUE_CARRIER_B6             28820 non-null  bool   
+ 27  OP_UNIQUE_CARRIER_DL             28820 non-null  bool   
+ 28  OP_UNIQUE_CARRIER_HA             28820 non-null  bool   
+ 29  OP_UNIQUE_CARRIER_MQ             28820 non-null  bool   
+ 30  OP_UNIQUE_CARRIER_OO             28820 non-null  bool   
+ 31  OP_UNIQUE_CARRIER_YX             28820 non-null  bool   
+dtypes: bool(15), float64(2), int64(15)
+memory usage: 4.2 MB
+
+
+I'm gonna try to fit a model
+Dataset: JFK Flight TakeOff Dataset
+The data set says it was meant to be used to predict TAXI OUT but tbf ill check out both delay and taxi time
+
+
+[ ]
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from ydata_profiling import ProfileReport     # updated import
+
+
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+Read CSV:
+
+
+[ ]
+df = pd.read_csv("data.csv")
+print(df.head())
+   MONTH  DAY_OF_MONTH  DAY_OF_WEEK OP_UNIQUE_CARRIER TAIL_NUM DEST  \
+0     11             1            5                B6   N828JB  CHS   
+1     11             1            5                B6   N992JB  LAX   
+2     11             1            5                B6   N959JB  FLL   
+3     11             1            5                B6   N999JQ  MCO   
+4     11             1            5                DL   N880DN  ATL   
+
+   DEP_DELAY  CRS_ELAPSED_TIME  DISTANCE  CRS_DEP_M  DEP_TIME_M  CRS_ARR_M  \
+0         -1               124       636        324         323        448   
+1         -7               371      2475        340         333        531   
+2         40               181      1069        301         341        482   
+3         -2               168       944        345         343        513   
+4         -4               139       760        360         356        499   
+
+   Temperature Dew Point  Humidity Wind  Wind Speed  Wind Gust  Pressure  \
+0           48        34        58    W          25         38     29.86   
+1           48        34        58    W          25         38     29.86   
+2           48        34        58    W          25         38     29.86   
+3           48        34        58    W          25         38     29.86   
+4           46        32        58    W          24         35     29.91   
+
+      Condition  sch_dep  sch_arr  TAXI_OUT  
+0  Fair / Windy        9       17        14  
+1  Fair / Windy        9       17        15  
+2  Fair / Windy        9       17        22  
+3  Fair / Windy        9       17        12  
+4  Fair / Windy        9       17        13  
+
+[ ]
+# Clean 'Dew Point' column by removing non-breaking spaces and casting to float
+df['Dew Point'] = df['Dew Point'].astype(str).str.replace(r'\xa0', '', regex=True).astype(float)
+df['Dew Point'].describe()
+count    28820.000000
+mean        30.420819
+std         12.314083
+min         -3.000000
+25%         23.000000
+50%         31.000000
+75%         39.000000
+max         67.000000
+Name: Dew Point, dtype: float64
+Basic EDA
+
+[ ]
+df.shape
+(28820, 23)
+
+[ ]
+df.dtypes
+MONTH                  int64
+DAY_OF_MONTH           int64
+DAY_OF_WEEK            int64
+OP_UNIQUE_CARRIER     object
+TAIL_NUM              object
+DEST                  object
+DEP_DELAY              int64
+CRS_ELAPSED_TIME       int64
+DISTANCE               int64
+CRS_DEP_M              int64
+DEP_TIME_M             int64
+CRS_ARR_M              int64
+Temperature            int64
+Dew Point            float64
+Humidity               int64
+Wind                  object
+Wind Speed             int64
+Wind Gust              int64
+Pressure             float64
+Condition             object
+sch_dep                int64
+sch_arr                int64
+TAXI_OUT               int64
+dtype: object
+
+[ ]
+df.sample(5)
+
+
+[ ]
+count = 0
+for col in df.columns:
+    print(col)
+MONTH
+DAY_OF_MONTH
+DAY_OF_WEEK
+OP_UNIQUE_CARRIER
+TAIL_NUM
+DEST
+DEP_DELAY
+CRS_ELAPSED_TIME
+DISTANCE
+CRS_DEP_M
+DEP_TIME_M
+CRS_ARR_M
+Temperature
+Dew Point
+Humidity
+Wind
+Wind Speed
+Wind Gust
+Pressure
+Condition
+sch_dep
+sch_arr
+TAXI_OUT
+
+[ ]
+df.isnull().sum()
+MONTH                0
+DAY_OF_MONTH         0
+DAY_OF_WEEK          0
+OP_UNIQUE_CARRIER    0
+TAIL_NUM             0
+DEST                 0
+DEP_DELAY            0
+CRS_ELAPSED_TIME     0
+DISTANCE             0
+CRS_DEP_M            0
+DEP_TIME_M           0
+CRS_ARR_M            0
+Temperature          0
+Dew Point            0
+Humidity             0
+Wind                 2
+Wind Speed           0
+Wind Gust            0
+Pressure             0
+Condition            0
+sch_dep              0
+sch_arr              0
+TAXI_OUT             0
+dtype: int64
+
+[ ]
+df.describe()
+
+
+[ ]
+df.duplicated().sum()
+np.int64(0)
+
+[ ]
+sns.countplot(x='Condition', data=df)
+plt.show()
+
+
+[ ]
+df = pd.concat([df, condition_dummies], axis=1)
+df.drop('Condition', axis=1, inplace=True)
+#drop one col to prevent multicollinearity
+df.drop('Condition_Fair', axis=1, inplace=True)
+
+print(df.head())
+
+
+   MONTH  DAY_OF_MONTH  DAY_OF_WEEK OP_UNIQUE_CARRIER TAIL_NUM DEST  \
+0     11             1            5                B6   N828JB  CHS   
+1     11             1            5                B6   N992JB  LAX   
+2     11             1            5                B6   N959JB  FLL   
+3     11             1            5                B6   N999JQ  MCO   
+4     11             1            5                DL   N880DN  ATL   
+
+   DEP_DELAY  CRS_ELAPSED_TIME  DISTANCE  CRS_DEP_M  DEP_TIME_M  CRS_ARR_M  \
+0         -1               124       636        324         323        448   
+1         -7               371      2475        340         333        531   
+2         40               181      1069        301         341        482   
+3         -2               168       944        345         343        513   
+4         -4               139       760        360         356        499   
+
+   Temperature  Dew Point  Humidity Wind  Wind Speed  Wind Gust  Pressure  \
+0           48       34.0        58    W          25         38     29.86   
+1           48       34.0        58    W          25         38     29.86   
+2           48       34.0        58    W          25         38     29.86   
+3           48       34.0        58    W          25         38     29.86   
+4           46       32.0        58    W          24         35     29.91   
+
+   sch_dep  sch_arr  TAXI_OUT  Condition_Cloudy  Condition_Fair / Windy  \
+0        9       17        14             False                    True   
+1        9       17        15             False                    True   
+2        9       17        22             False                    True   
+3        9       17        12             False                    True   
+4        9       17        13             False                    True   
+
+   Condition_Light Rain  Condition_Mostly Cloudy  \
+0                 False                    False   
+1                 False                    False   
+2                 False                    False   
+3                 False                    False   
+4                 False                    False   
+
+   Condition_Mostly Cloudy / Windy  Condition_Partly Cloudy  Condition_Severe  
+0                            False                    False             False  
+1                            False                    False             False  
+2                            False                    False             False  
+3                            False                    False             False  
+4                            False                    False             False  
+drop useless shit
+
+
+[ ]
+df.drop(['TAIL_NUM', "sch_arr", "DEST", "Wind"], axis=1, inplace=True)
+Correlation:
+
+
+[ ]
+fig, ax = plt.subplots(figsize=(14, 8))
+sns.heatmap(df.corr(numeric_only=True), annot=True, ax=ax, annot_kws={'size': 8}, cmap='coolwarm')
+plt.show()
+
+
+
+[ ]
+df.corr(numeric_only=True)['DEP_DELAY'].abs().sort_values(ascending=False)
+DEP_DELAY                          1.000000
+CRS_DEP_M                          0.102384
+DEP_TIME_M                         0.072340
+Wind Speed                         0.067718
+sch_dep                            0.065452
+Pressure                           0.064939
+Condition_Severe                   0.054908
+MONTH                              0.046455
+Wind Gust                          0.044340
+CRS_ARR_M                          0.043691
+DAY_OF_MONTH                       0.036618
+TAXI_OUT                           0.034881
+Temperature                        0.032261
+DISTANCE                           0.031507
+CRS_ELAPSED_TIME                   0.030871
+Condition_Mostly Cloudy            0.027309
+Condition_Light Rain               0.021871
+Condition_Fair / Windy             0.016491
+Condition_Cloudy                   0.012512
+Humidity                           0.011776
+Condition_Partly Cloudy            0.010489
+DAY_OF_WEEK                        0.006203
+Condition_Mostly Cloudy / Windy    0.003076
+Dew Point                          0.000013
+Name: DEP_DELAY, dtype: float64
+
+[ ]
+df = pd.get_dummies(df, columns=["OP_UNIQUE_CARRIER"], drop_first=True)
+
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 28820 entries, 0 to 28819
+Data columns (total 32 columns):
+ #   Column                           Non-Null Count  Dtype  
+---  ------                           --------------  -----  
+ 0   MONTH                            28820 non-null  int64  
+ 1   DAY_OF_MONTH                     28820 non-null  int64  
+ 2   DAY_OF_WEEK                      28820 non-null  int64  
+ 3   DEP_DELAY                        28820 non-null  int64  
+ 4   CRS_ELAPSED_TIME                 28820 non-null  int64  
+ 5   DISTANCE                         28820 non-null  int64  
+ 6   CRS_DEP_M                        28820 non-null  int64  
+ 7   DEP_TIME_M                       28820 non-null  int64  
+ 8   CRS_ARR_M                        28820 non-null  int64  
+ 9   Temperature                      28820 non-null  int64  
+ 10  Dew Point                        28820 non-null  float64
+ 11  Humidity                         28820 non-null  int64  
+ 12  Wind Speed                       28820 non-null  int64  
+ 13  Wind Gust                        28820 non-null  int64  
+ 14  Pressure                         28820 non-null  float64
+ 15  sch_dep                          28820 non-null  int64  
+ 16  TAXI_OUT                         28820 non-null  int64  
+ 17  Condition_Cloudy                 28820 non-null  bool   
+ 18  Condition_Fair / Windy           28820 non-null  bool   
+ 19  Condition_Light Rain             28820 non-null  bool   
+ 20  Condition_Mostly Cloudy          28820 non-null  bool   
+ 21  Condition_Mostly Cloudy / Windy  28820 non-null  bool   
+ 22  Condition_Partly Cloudy          28820 non-null  bool   
+ 23  Condition_Severe                 28820 non-null  bool   
+ 24  OP_UNIQUE_CARRIER_AA             28820 non-null  bool   
+ 25  OP_UNIQUE_CARRIER_AS             28820 non-null  bool   
+ 26  OP_UNIQUE_CARRIER_B6             28820 non-null  bool   
+ 27  OP_UNIQUE_CARRIER_DL             28820 non-null  bool   
+ 28  OP_UNIQUE_CARRIER_HA             28820 non-null  bool   
+ 29  OP_UNIQUE_CARRIER_MQ             28820 non-null  bool   
+ 30  OP_UNIQUE_CARRIER_OO             28820 non-null  bool   
+ 31  OP_UNIQUE_CARRIER_YX             28820 non-null  bool   
+dtypes: bool(15), float64(2), int64(15)
+memory usage: 4.2 MB
+Uni-Variate
+
+[ ]
+sns.histplot(df['TAXI_OUT'], kde=True)
+plt.show()
+sns.histplot(df['DEP_DELAY'], kde=True)
+plt.show()
+
+almost all flights are not delayed more then 200 mins standard deviation is 1 hr or smth tho
+
+
+[ ]
+sns.boxplot(x=df['TAXI_OUT'])
+plt.show()
+sns.boxplot(x=df['DEP_DELAY'])
+plt.show()
+
+BUNCH of outliers for delay, but taxi_out seems ok
+
+
+[ ]
+sns.histplot(df['sch_dep'], kde=True)
+plt.show()
+
+
+[ ]
+## Multivariate Analysis
+
+[ ]
+sns.scatterplot(x=df['sch_dep'], y=df['TAXI_OUT'], hue=df["DEP_DELAY"])
+plt.show()
+sns.scatterplot(x=df['sch_dep'], y=df['DEP_DELAY'], hue=df["TAXI_OUT"])
+plt.show()
+
+what the fuck does this mean
+
+Pairplot
+
+[ ]
+#sns.pairplot(df, hue='DEP_DELAY')
+#plt.show()
+Ydata report
+
+[ ]
+
+#prof = ProfileReport(df)
+#prof.to_file(output_file='output.html')
+summary
+ok so
+
+shit data:
+
+dew point is not a numeric col somehow?? it has invisiblem unicode chars which pandas cant parse.
+if we're doing to predict dep_delay, then we need to drop texi_out technically taxi out is data from the future (when the plane gets atc taxi clearance i presume) which we dont have when the plane is on the gate.
+
+categorical data encoding issues:
+
+Condition has a LOT of unqiue vals with very low frequencies, i grouped these under a column called severe but idk mane we need to fix this somehow. also if you really think about it, we need the weather data that i grouped under severe because that is exactly when flights get delayed. maybe we can group a range of these, we'll have to see
+
+TAIL_NUM just has to go, its useless
+
+outliers and skewness:
+
+the target val (dep_delay) is skewed to the right HEAVILY, we need a function or power transform.
+final data:
+
+[ ]
+df.shape
+(28820, 32)
+
+[ ]
+df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 28820 entries, 0 to 28819
+Data columns (total 32 columns):
+ #   Column                           Non-Null Count  Dtype  
+---  ------                           --------------  -----  
+ 0   MONTH                            28820 non-null  int64  
+ 1   DAY_OF_MONTH                     28820 non-null  int64  
+ 2   DAY_OF_WEEK                      28820 non-null  int64  
+ 3   DEP_DELAY                        28820 non-null  int64  
+ 4   CRS_ELAPSED_TIME                 28820 non-null  int64  
+ 5   DISTANCE                         28820 non-null  int64  
+ 6   CRS_DEP_M                        28820 non-null  int64  
+ 7   DEP_TIME_M                       28820 non-null  int64  
+ 8   CRS_ARR_M                        28820 non-null  int64  
+ 9   Temperature                      28820 non-null  int64  
+ 10  Dew Point                        28820 non-null  float64
+ 11  Humidity                         28820 non-null  int64  
+ 12  Wind Speed                       28820 non-null  int64  
+ 13  Wind Gust                        28820 non-null  int64  
+ 14  Pressure                         28820 non-null  float64
+ 15  sch_dep                          28820 non-null  int64  
+ 16  TAXI_OUT                         28820 non-null  int64  
+ 17  Condition_Cloudy                 28820 non-null  bool   
+ 18  Condition_Fair / Windy           28820 non-null  bool   
+ 19  Condition_Light Rain             28820 non-null  bool   
+ 20  Condition_Mostly Cloudy          28820 non-null  bool   
+ 21  Condition_Mostly Cloudy / Windy  28820 non-null  bool   
+ 22  Condition_Partly Cloudy          28820 non-null  bool   
+ 23  Condition_Severe                 28820 non-null  bool   
+ 24  OP_UNIQUE_CARRIER_AA             28820 non-null  bool   
+ 25  OP_UNIQUE_CARRIER_AS             28820 non-null  bool   
+ 26  OP_UNIQUE_CARRIER_B6             28820 non-null  bool   
+ 27  OP_UNIQUE_CARRIER_DL             28820 non-null  bool   
+ 28  OP_UNIQUE_CARRIER_HA             28820 non-null  bool   
+ 29  OP_UNIQUE_CARRIER_MQ             28820 non-null  bool   
+ 30  OP_UNIQUE_CARRIER_OO             28820 non-null  bool   
+ 31  OP_UNIQUE_CARRIER_YX             28820 non-null  bool   
+dtypes: bool(15), float64(2), int64(15)
+memory usage: 4.2 MB
+
+
+I'm gonna try to fit a model
+# train test split
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(df.drop('DEP_DELAY', axis=1), df['DEP_DELAY'], test_size=0.2, random_state=42)
+
+# fit a simple model to check performance
+from sklearn.ensemble import RandomForestRegressor
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+print(f"Root Mean Square Error: {rmse}")
+r2 = model.score(X_test, y_test)
+print(f"R^2 Score: {r2}")
+
+# fit XGBoost model
+from xgboost import XGBRegressor
+xgb_model = XGBRegressor(n_estimators=100, random_state=42)
+xgb_model.fit(X_train, y_train)
+y_pred_xgb = xgb_model.predict(X_test)
+rmse_xgb = np.sqrt(mean_squared_error(y_test, y_pred_xgb))
+print(f"XGBoost Root Mean Square Error: {rmse_xgb}")
+r2_xgb = xgb_model.score(X_test, y_test)
+print(f"XGBoost R^2 Score: {r2_xgb}")
+
+
+
+Root Mean Square Error: 16.335004989116115
+R^2 Score: 0.8169702877676366
+XGBoost Root Mean Square Error: 16.283921738258705
+XGBoost R^2 Score: 0.8181132674217224
+
+# perform hyperparameter tuning using RandomizedSearchCV for XGBoost
+from sklearn.model_selection import RandomizedSearchCV
+# Define a parameter grid
+param_grid = {
+    'n_estimators': [100, 200, 300, 400],
+    'max_depth': [3, 5, 7, 9],
+    'learning_rate': [0.01, 0.05, 0.1, 0.2],
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0]
+}
+
+# Initialize RandomizedSearchCV
+# Using RandomizedSearchCV rather than GridSearchCV as it is much faster
+xgb_tuned = XGBRegressor(random_state=42)
+random_search = RandomizedSearchCV(
+    estimator=xgb_tuned,
+    param_distributions=param_grid,
+    n_iter=10, # Number of parameter settings that are sampled (increase for more thorough search)
+    cv=3,      # 3-fold cross-validation
+    scoring='neg_root_mean_squared_error',
+    n_jobs=-1, # Use all available cores
+    random_state=42,
+    verbose=2
+)
+
+# Fit the model
+random_search.fit(X_train, y_train)
+
+# Output best parameters
+print(f"Best hyperparameters: {random_search.best_params_}")
+
+# Evaluate the best model
+best_xgb_model = random_search.best_estimator_
+y_pred_best_xgb = best_xgb_model.predict(X_test)
+
+rmse_best_xgb = np.sqrt(mean_squared_error(y_test, y_pred_best_xgb))
+print(f"Tuned XGBoost Root Mean Square Error: {rmse_best_xgb}")
+
+r2_best_xgb = best_xgb_model.score(X_test, y_test)
+print(f"Tuned XGBoost R^2 Score: {r2_best_xgb}")
+
+
+just end my life bro
+
+ok no a rmse of 16 min and r2 of 0.81 isnt THAT bad but we surely need improvements
+
+another thing that we can try is a simpler classification model that just answers if the flight will be delayed or nah. have a thresh hold of like 5 min to say if something is delayed or nah
+
+binning could also help
+
+
+Conclusion
+so, it's definitely possible to predict delays using this data set, but we need a lot of work. classification models will be easier to make imo so if nothing works, we can try that.
+
+also im gonna look for a data set thats alighned to our problem statement tmr.. this data set is meant to be used for taxi out times. i saw some dude get like a 6% error rate oin that. this data seems to be older, but NYC changed it's laws about flight delays in 23-24 so we'll probably want newer data because the webapp we make will ofcourse be fed live data
